@@ -21,6 +21,11 @@ namespace SequenceDiagramCSharpSyntaxWalker.Extensions
             return sn.FirstAncestorOrSelf<TypeDeclarationSyntax>();
         }
 
+        public static BlockSyntax InWhichBlockSyntax(this SyntaxNode sn)
+        {
+            return sn.FirstAncestorOrSelf<BlockSyntax>();
+        }
+
         public static T ToExpr<T>(this string code) where T : ExpressionSyntax
         {
             return SyntaxFactory.ParseExpression(code).As<T>();

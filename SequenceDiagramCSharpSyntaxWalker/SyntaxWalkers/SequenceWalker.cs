@@ -8,7 +8,15 @@ namespace SequenceDiagramCSharpSyntaxWalker.SyntaxWalkers
 {
     public class SequenceWalker : CSharpSyntaxWalker
     {
-        StringBuilder WalkerLog = new StringBuilder();
+        private const string ChartPrefix = @"@startuml
+!theme vibrant from https://raw.githubusercontent.com/plantuml/plantuml/master/themes
+skinparam responseMessageBelowArrow true
+autoactivate on
+autonumber";
+
+
+        private const string ChartSuffix = "\r\n@enduml";
+        private StringBuilder _walkerLog = new StringBuilder();
 
         public SequenceWalker(SyntaxTree tree, CSharpCompilation compilation)
         {
@@ -16,6 +24,8 @@ namespace SequenceDiagramCSharpSyntaxWalker.SyntaxWalkers
             this.Root = this.RootSyntaxTree.GetRoot();
             this.Compilation = compilation;
             this.Model = compilation.GetSemanticModel(this.RootSyntaxTree, false);
+
+            this._walkerLog.AppendLine(ChartPrefix);
         }
 
         public CSharpCompilation Compilation { get; }
@@ -372,7 +382,7 @@ namespace SequenceDiagramCSharpSyntaxWalker.SyntaxWalkers
         {
             string ifStatement = node.ToFullString();
             Console.WriteLine($"Else statement: {ifStatement}");
-            this.WalkerLog.AppendLine($"Else statement: {ifStatement}");
+            this._walkerLog.AppendLine($"Else statement: {ifStatement}");
             base.VisitElseClause(node);
         }
 
@@ -471,7 +481,7 @@ namespace SequenceDiagramCSharpSyntaxWalker.SyntaxWalkers
             string fullStatement =
                 $"{node.ForEachKeyword} ({node.Type.GetText()}{node.Identifier.Text} {node.InKeyword.Text} {node.Expression})";
             Console.WriteLine(fullStatement);
-            this.WalkerLog.AppendLine(fullStatement);
+            this._walkerLog.AppendLine(fullStatement);
 
             var test = node.ForEachKeyword.ToFullString() + " " + node.InKeyword.ToFullString() + " " +
                        node.Expression.ToFullString();
@@ -489,7 +499,7 @@ namespace SequenceDiagramCSharpSyntaxWalker.SyntaxWalkers
         {
             string fullStatement = $"for ({node.Declaration}; {node.Condition}; {node.Incrementors})";
             Console.WriteLine($"For statement: {fullStatement}");
-            this.WalkerLog.AppendLine($"For statement: {fullStatement}");
+            this._walkerLog.AppendLine($"For statement: {fullStatement}");
             base.VisitForStatement(node);
         }
 
@@ -564,7 +574,7 @@ namespace SequenceDiagramCSharpSyntaxWalker.SyntaxWalkers
         {
             string ifStatement = node.Condition.ToFullString();
             Console.WriteLine($"If statement: {ifStatement}");
-            this.WalkerLog.AppendLine($"If statement: {ifStatement}");
+            this._walkerLog.AppendLine($"If statement: {ifStatement}");
             base.VisitIfStatement(node);
         }
 
@@ -662,7 +672,7 @@ namespace SequenceDiagramCSharpSyntaxWalker.SyntaxWalkers
                         string message2 =
                             $"Variable instantiation: {((VariableDeclarationSyntax)queryNode.Parent).Type.ToString()} {queryNode.ToFullString()}";
                         Console.WriteLine(message2);
-                        this.WalkerLog.AppendLine(message2);
+                        this._walkerLog.AppendLine(message2);
                         Console.WriteLine(queryNode.ToString());
                     }
                     // The target is a simple identifier, the code being analysed is of the form
@@ -697,7 +707,7 @@ namespace SequenceDiagramCSharpSyntaxWalker.SyntaxWalkers
             }
 
             Console.WriteLine($"Invocation Expression : {node.GetText()}");
-            this.WalkerLog.AppendLine($"Invocation Expression: {node.GetText()}");
+            this._walkerLog.AppendLine($"Invocation Expression: {node.GetText()}");
             var variableDeclaration = node.Parent;
             Console.WriteLine($"Above was declared via: {variableDeclaration.GetText()}");
             base.VisitInvocationExpression(node);
@@ -796,7 +806,7 @@ namespace SequenceDiagramCSharpSyntaxWalker.SyntaxWalkers
         public override void VisitMethodDeclaration(MethodDeclarationSyntax node)
         {
             Console.WriteLine($"Method Declaration: {node.Identifier.Text}");
-            this.WalkerLog.AppendLine($"Method declaration: {node.Identifier.Text}");
+            this._walkerLog.AppendLine($"Method declaration: {node.Identifier.Text}");
             var symbol = this.Model.GetDeclaredSymbol(node) as IMethodSymbol;
             base.VisitMethodDeclaration(node);
         }
