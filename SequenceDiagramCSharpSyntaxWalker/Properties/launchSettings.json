@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "SequenceDiagramCSharpSyntaxWalker": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\brand\\source\\repos\\DemonstratingMethodsifsWhereWhileForForEach\\DemonstratingMethodsifsWhereWhileForForEach.sln"
+    }
+  }
+}
