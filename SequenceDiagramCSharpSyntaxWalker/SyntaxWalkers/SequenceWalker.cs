@@ -652,6 +652,8 @@ autonumber";
         public override void VisitInvocationExpression(InvocationExpressionSyntax node)
         {
             var invokedSymbol = this.Model.GetSymbolInfo(node).Symbol;
+            var invokedSymbol2 = this.Model.GetSymbolInfo(node.Expression).Symbol;
+            var invokedSymbol3 = this.Model.GetSymbolInfo(node.Parent).Symbol;
             var memberAccess = node.Expression as MemberAccessExpressionSyntax;
 
             if (memberAccess != null)
@@ -678,15 +680,6 @@ autonumber";
                     // The target is a simple identifier, the code being analysed is of the form
                     // "command.ExecuteReader()" and memberAccess.Expression is the "command"
                     // node
-                }
-                else if (memberAccess.Expression is InvocationExpressionSyntax)
-                {
-                    var member = (InvocationExpressionSyntax)memberAccess.Expression;
-
-                    var methodSymbol = this.Model.GetSymbolInfo(node).Symbol as IMethodSymbol;
-                    // The target is another invocation, the code being analysed is of the form
-                    // "GetCommand().ExecuteReader()" and memberAccess.Expression is the
-                    // "GetCommand()" node
                 }
                 else if (memberAccess.Expression is MemberAccessExpressionSyntax)
                 {
