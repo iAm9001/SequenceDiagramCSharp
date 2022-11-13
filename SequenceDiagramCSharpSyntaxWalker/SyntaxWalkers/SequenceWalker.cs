@@ -1,21 +1,17 @@
 ﻿using System;
+using System.Linq;
 using System.Text;
+using LivingDocumentation.Uml;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using PlantUml.Builder.SequenceDiagrams;
+using SequenceDiagramCSharpSyntaxWalker.Extensions;
 
 namespace SequenceDiagramCSharpSyntaxWalker.SyntaxWalkers
 {
     public class SequenceWalker : CSharpSyntaxWalker
     {
-        private const string ChartPrefix = @"@startuml
-!theme vibrant from https://raw.githubusercontent.com/plantuml/plantuml/master/themes
-skinparam responseMessageBelowArrow true
-autoactivate on
-autonumber";
-
-
-        private const string ChartSuffix = "\r\n@enduml";
         private StringBuilder _walkerLog = new StringBuilder();
 
         public SequenceWalker(SyntaxTree tree, CSharpCompilation compilation)
@@ -25,7 +21,12 @@ autonumber";
             this.Compilation = compilation;
             this.Model = compilation.GetSemanticModel(this.RootSyntaxTree, false);
 
-            this._walkerLog.AppendLine(ChartPrefix);
+            this._walkerLog.UmlDiagramStart("myFile.uml");
+            this._walkerLog.AppendLine(
+                @"!theme vibrant from https://raw.githubusercontent.com/plantuml/plantuml/master/themes");
+            this._walkerLog.SkinParameter(SkinParameter.ResponseMessageBelowArrow, true.ToString());
+            this._walkerLog.AutoActivate();
+            this._walkerLog.AutoNumber();
         }
 
         public CSharpCompilation Compilation { get; }
@@ -380,9 +381,8 @@ autonumber";
 
         public override void VisitElseClause(ElseClauseSyntax node)
         {
-            string ifStatement = node.ToFullString();
-            Console.WriteLine($"Else statement: {ifStatement}");
-            this._walkerLog.AppendLine($"Else statement: {ifStatement}");
+            string ifStatement = ((IfStatementSyntax)node.Statement).Condition.ToString();
+            LivingDocumentation.Uml.StringBuilderExtensions.ElseStart(this._walkerLog, ifStatement);
             base.VisitElseClause(node);
         }
 
@@ -481,13 +481,14 @@ autonumber";
             string fullStatement =
                 $"{node.ForEachKeyword} ({node.Type.GetText()}{node.Identifier.Text} {node.InKeyword.Text} {node.Expression})";
             Console.WriteLine(fullStatement);
-            this._walkerLog.AppendLine(fullStatement);
+            this._walkerLog.StartLoop(fullStatement);
 
-            var test = node.ForEachKeyword.ToFullString() + " " + node.InKeyword.ToFullString() + " " +
-                       node.Expression.ToFullString();
+            var test = node.ForEachKeyword.ValueText + " " + node.InKeyword.ValueText.ToString() + " " +
+                       node.Expression.GetText().ToString();
 
             fullStatement = $"foreach ({node.Expression.GetText()})";
             base.VisitForEachStatement(node);
+            this._walkerLog.EndLoop();
         }
 
         public override void VisitForEachVariableStatement(ForEachVariableStatementSyntax node)
@@ -499,8 +500,9 @@ autonumber";
         {
             string fullStatement = $"for ({node.Declaration}; {node.Condition}; {node.Incrementors})";
             Console.WriteLine($"For statement: {fullStatement}");
-            this._walkerLog.AppendLine($"For statement: {fullStatement}");
+            this._walkerLog.StartLoop($"{fullStatement}");
             base.VisitForStatement(node);
+            this._walkerLog.EndLoop();
         }
 
         public override void VisitFromClause(FromClauseSyntax node)
@@ -572,10 +574,11 @@ autonumber";
 
         public override void VisitIfStatement(IfStatementSyntax node)
         {
-            string ifStatement = node.Condition.ToFullString();
+            string ifStatement = node.Condition.GetText().ToString();
             Console.WriteLine($"If statement: {ifStatement}");
-            this._walkerLog.AppendLine($"If statement: {ifStatement}");
+            LivingDocumentation.Uml.StringBuilderExtensions.GroupStart(this._walkerLog, "if", ifStatement);
             base.VisitIfStatement(node);
+            LivingDocumentation.Uml.StringBuilderExtensions.GroupEnd(this._walkerLog);
         }
 
         public override void VisitImplicitArrayCreationExpression(ImplicitArrayCreationExpressionSyntax node)
@@ -651,11 +654,42 @@ autonumber";
 
         public override void VisitInvocationExpression(InvocationExpressionSyntax node)
         {
-            var invokedSymbol = this.Model.GetSymbolInfo(node).Symbol;
-            var invokedSymbol2 = this.Model.GetSymbolInfo(node.Expression).Symbol;
-            var invokedSymbol3 = this.Model.GetSymbolInfo(node.Parent).Symbol;
-            var memberAccess = node.Expression as MemberAccessExpressionSyntax;
+            string calledMethod = string.Empty;
+            ;
+            string calledMethodClass = string.Empty;
+            ;
+            string callerName = string.Empty;
+            string calledName = string.Empty;
+            string description = string.Empty;
+            string localVariableDeclaration = String.Empty;
+            ITypeSymbol returnStatement = null;
 
+            var callerMethod = node.InWhichMethod();
+            var callerMethodClass = node.InWhichTypeDeclaration();
+            callerName = callerMethod.Identifier.ValueText;
+
+            var callerMethodSymbol = this.Model
+                .GetSymbolInfo(callerMethod)
+                .Symbol as IMethodSymbol;
+            var calledMethodSymbol = this.Model
+                .GetSymbolInfo(node)
+                .Symbol as IMethodSymbol;
+
+            if (calledMethodSymbol != null)
+            {
+                calledMethod = calledMethodSymbol.Name;
+                calledMethodClass = calledMethodSymbol.ContainingType.Name;
+                returnStatement = calledMethodSymbol.ReturnType;
+            }
+
+            callerName = callerMethod.Identifier.ValueText;
+            calledName = calledMethod;
+
+
+            bool callingMethodSameCLassAsCalledMethod = calledMethodClass == callerMethodClass.Identifier.ValueText;
+
+
+            var memberAccess = node.Expression as MemberAccessExpressionSyntax;
             if (memberAccess != null)
             {
                 if (memberAccess.Expression is IdentifierNameSyntax)
@@ -670,11 +704,13 @@ autonumber";
                     foreach (var location in memberLocations)
                     {
                         var queryNode = location.SourceTree?.GetRoot()?.FindNode(location.SourceSpan);
-
+                        localVariableDeclaration =
+                            $"{((VariableDeclarationSyntax)queryNode.Parent).Type.ToString()} {queryNode.GetText().ToString()}";
                         string message2 =
-                            $"Variable instantiation: {((VariableDeclarationSyntax)queryNode.Parent).Type.ToString()} {queryNode.ToFullString()}";
+                            $"Variable instantiation: {((VariableDeclarationSyntax)queryNode.Parent).Type.ToString()} {queryNode.GetText().ToString()}";
+
                         Console.WriteLine(message2);
-                        this._walkerLog.AppendLine(message2);
+                        this._walkerLog.Create(localVariableDeclaration);
                         Console.WriteLine(queryNode.ToString());
                     }
                     // The target is a simple identifier, the code being analysed is of the form
@@ -699,11 +735,44 @@ autonumber";
                 }
             }
 
-            Console.WriteLine($"Invocation Expression : {node.GetText()}");
-            this._walkerLog.AppendLine($"Invocation Expression: {node.GetText()}");
-            var variableDeclaration = node.Parent;
-            Console.WriteLine($"Above was declared via: {variableDeclaration.GetText()}");
+            if (!callingMethodSameCLassAsCalledMethod && calledMethodSymbol != null)
+            {
+                string invocationDetails =
+                    $"{calledMethodSymbol.ToFullyQualifiedName()}({string.Join(",", calledMethodSymbol?.Parameters.Select(s => s?.ToDisplayString()))})";
+
+                this._walkerLog.CreateActor(callerName, callerName);
+                this._walkerLog.CreateActor(calledName, calledName);
+                this._walkerLog.Actor(callerName, callerName);
+                this._walkerLog.Participant(calledMethod, calledMethod, ParticipantType.Actor);
+                this._walkerLog.Arrow(callerName,
+                    calledMethodClass,
+                    invocationDetails.Replace(Environment.NewLine, "\\n"));
+            }
+            else if (callingMethodSameCLassAsCalledMethod &&
+                     calledMethodSymbol != null) // (callingMethodSameCLassAsCalledMethod)
+            {
+                string invocationDetails =
+                    $"{calledMethodSymbol.ToFullyQualifiedName()}({string.Join(",", calledMethodSymbol?.Parameters.Select(s => s?.ToDisplayString()))})";
+
+                this._walkerLog.CreateActor(callerName, callerName);
+                this._walkerLog.CreateActor(calledName, calledName);
+                this._walkerLog.Actor(callerName, callerName);
+                this._walkerLog.Participant(calledMethod, calledMethod, ParticipantType.Actor);
+                this._walkerLog.Arrow(callerName,
+                    calledMethodClass,
+                    invocationDetails.Replace(Environment.NewLine, "\\n"));
+            }
+
+            Console.WriteLine($"Above was declared via: {localVariableDeclaration}");
             base.VisitInvocationExpression(node);
+            if (returnStatement != null)
+            {
+                this._walkerLog.Return(returnStatement?.ToDisplayString());
+            }
+            else
+            {
+                this._walkerLog.Return();
+            }
         }
 
         public override void VisitIsPatternExpression(IsPatternExpressionSyntax node)
@@ -798,9 +867,9 @@ autonumber";
 
         public override void VisitMethodDeclaration(MethodDeclarationSyntax node)
         {
-            Console.WriteLine($"Method Declaration: {node.Identifier.Text}");
-            this._walkerLog.AppendLine($"Method declaration: {node.Identifier.Text}");
-            var symbol = this.Model.GetDeclaredSymbol(node) as IMethodSymbol;
+            // Console.WriteLine($"Method Declaration: {node.Identifier.Text}");
+            // this._walkerLog.AppendLine($"Method declaration: {node.Identifier.Text}");
+            // var symbol = this.Model.GetDeclaredSymbol(node) as IMethodSymbol;
             base.VisitMethodDeclaration(node);
         }
 
@@ -1327,6 +1396,11 @@ autonumber";
         public override void VisitYieldStatement(YieldStatementSyntax node)
         {
             base.VisitYieldStatement(node);
+        }
+
+        public string GetFinishedDiagram()
+        {
+            return this._walkerLog.ToString();
         }
     }
 }

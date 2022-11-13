@@ -61,6 +61,8 @@ namespace SequenceDiagramCSharpSyntaxWalker
                             var walker = new SequenceWalker(tree, comp);
                             walker.Visit(root);
 
+                            var diagram = walker.GetFinishedDiagram();
+
                             continue;
                         }
                     }

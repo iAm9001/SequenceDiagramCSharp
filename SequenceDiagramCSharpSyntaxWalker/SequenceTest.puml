@@ -1,0 +1,20 @@
+@startuml myFile.uml
+!theme vibrant from https://raw.githubusercontent.com/plantuml/plantuml/master/themes
+skinparam ResponseMessageBelowArrow True
+autoactivate on
+autonumber
+loop for (int i = 0; i < 3; i++)
+create "var second = new SecondClass()"
+create actor PerformSomething as PerformSomething
+create actor ReturnSomething as ReturnSomething
+actor PerformSomething as PerformSomething
+actor "ReturnSomething" as ReturnSomething
+PerformSomething -> ReturnSomething: ReturnSomething(bool)
+return bool
+create "var third = new ThirdClassBase()"
+create actor PerformSomething as PerformSomething
+create actor ReturnSomeStringLength as ReturnSomeStringLength
+actor PerformSomething as PerformSomething
+actor "ReturnSomeStringLength" as ReturnSomeStringLength
+PerformSomething -> PerformSomething: PerformSomething
+@enduml
